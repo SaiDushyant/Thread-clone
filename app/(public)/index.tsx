@@ -1,6 +1,8 @@
 import { Colors } from "@/constants/Colors";
+import { api } from "@/convex/_generated/api";
 import { useOAuth } from "@clerk/clerk-expo";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useQuery } from "convex/react";
 import {
   Image,
   ScrollView,
@@ -15,6 +17,8 @@ export default function Index() {
   const { startOAuthFlow: startGoogleOAuthFlow } = useOAuth({
     strategy: "oauth_google",
   });
+  const data = useQuery(api.users.getAllUsers);
+  console.log(data);
 
   const handleFacebookLogin = async () => {
     try {

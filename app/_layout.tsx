@@ -10,6 +10,16 @@ import { Slot } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 
+import { ConvexProvider, ConvexReactClient } from "convex/react";
+
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL!, {
+  unsavedChangesWarning: false,
+});
+
+if (!publishableKey) {
+  throw new Error("Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env");
+}
 // Prevents splash screen from auto hiding
 SplashScreen.preventAutoHideAsync();
 
@@ -32,15 +42,12 @@ const InitialLayout = () => {
 };
 
 export default function RootLayout() {
-  const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
-
-  if (!publishableKey) {
-    throw new Error("Add EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env");
-  }
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ClerkLoaded>
-        <InitialLayout />
+        <ConvexProvider client={convex}>
+          <InitialLayout />
+        </ConvexProvider>
       </ClerkLoaded>
     </ClerkProvider>
   );
