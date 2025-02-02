@@ -1,8 +1,6 @@
 import { Colors } from "@/constants/Colors";
-import { api } from "@/convex/_generated/api";
 import { useOAuth } from "@clerk/clerk-expo";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useQuery } from "convex/react";
 import {
   Image,
   ScrollView,
@@ -17,18 +15,19 @@ export default function Index() {
   const { startOAuthFlow: startGoogleOAuthFlow } = useOAuth({
     strategy: "oauth_google",
   });
-  const data = useQuery(api.users.getAllUsers);
-  console.log(data);
 
   const handleFacebookLogin = async () => {
     try {
-      const { createdSessionId, setActive } = await startOAuthFlow();
-      console.log("handleFacebookLogin createdSessionId:", createdSessionId);
+      const result = await startOAuthFlow();
+      console.log("Facebook Login Result:", result); // Debugging
+      const { createdSessionId, setActive } = result;
+
       if (createdSessionId) {
         setActive!({ session: createdSessionId });
+        console.error("Facebook OAuth failed: No session ID received");
       }
     } catch (error) {
-      console.error(error);
+      console.error("Facebook OAuth Error:", error);
     }
   };
 
