@@ -87,6 +87,8 @@ const InitialLayout = () => {
         id: user.user.id,
         email: user.user.primaryEmailAddress?.emailAddress,
       });
+    } else {
+      Sentry.setUser(null);
     }
   }, [user]);
 

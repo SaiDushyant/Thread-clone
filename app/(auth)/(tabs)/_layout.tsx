@@ -3,7 +3,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs, useRouter } from "expo-router";
 import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 // Rename to PascalCase and make it a proper React component
 const CreateCustomIcon = ({ color, size }: { color: string; size: number }) => {
@@ -88,11 +88,7 @@ const Layout = () => {
               size={size}
             />
           ),
-          headerRight: () => (
-            <TouchableOpacity onPress={() => signOut()}>
-              <Ionicons name="log-out" size={24} style={{ marginRight: 15 }} />
-            </TouchableOpacity>
-          ),
+          headerShown: false,
         }}
       />
     </Tabs>

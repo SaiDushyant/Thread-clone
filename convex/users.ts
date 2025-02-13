@@ -1,13 +1,19 @@
 import { v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
+import {
+  internalMutation,
+  mutation,
+  query,
+  QueryCtx,
+} from "./_generated/server";
 
-export const getAllUsers = query({
-  args: {},
-  handler: async (ctx) => {
-    console.log("getAllUsers");
-    return await ctx.db.query("users").collect();
-  },
-});
+// export const getAllUsers = query({
+//   args: {},
+//   handler: async (ctx) => {
+//     console.log("getAllUsers");
+//     return await ctx.db.query("users").collect();
+//   },
+// });
 
 export const createUser = internalMutation({
   args: {
@@ -22,18 +28,106 @@ export const createUser = internalMutation({
     followersCount: v.number(),
   },
   handler: async (ctx, args) => {
-    console.log("Received webhook data:", args); // Log incoming data
+    const userId = await ctx.db.insert("users", {
+      ...args,
+      username: args.username || `${args.first_name}${args.last_name}`,
+    });
+    return userId;
+  },
+});
 
-    try {
-      const userId = await ctx.db.insert("users", {
-        ...args,
-        username: args.username || `${args.first_name}${args.last_name}`,
-      });
-      console.log("User successfully inserted:", userId); // Log success
-      return userId;
-    } catch (error) {
-      console.error("Error inserting user:", error); // Log any DB errors
-      throw new Error("Database insert failed");
+export const getUserByClerkId = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("clerkId"), args.clerkId))
+      .unique();
+    return getUserWithImageUrl(ctx, user);
+  },
+});
+
+export const getUserById = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    return getUserWithImageUrl(ctx, user);
+  },
+});
+
+export const updateUser = mutation({
+  args: {
+    _id: v.id("users"),
+    imageUrl: v.optional(v.id("_storage")),
+    bio: v.optional(v.string()),
+    websiteUrl: v.optional(v.string()),
+    pushToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await getCurrentUserOrThrow(ctx);
+    return await ctx.db.patch(args._id, args);
+  },
+});
+
+export const generateUploadUrl = mutation({
+  handler: async (ctx) => {
+    await getCurrentUserOrThrow(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Resuable Functions
+
+const getUserWithImageUrl = async (
+  ctx: QueryCtx,
+  user: Doc<"users"> | null
+) => {
+  if (!user?.imageUrl || user?.imageUrl.startsWith("http")) {
+    return user;
+  }
+
+  const imageUrl = await ctx.storage.getUrl(user.imageUrl as Id<"_storage">);
+  return { ...user, imageUrl };
+};
+
+// Identity Check
+
+export const current = query({
+  args: {},
+  handler: async (ctx) => {
+    return await getCurrentUser(ctx);
+  },
+});
+
+export const deleteFromClerk = internalMutation({
+  args: { clerkUserId: v.string() },
+  async handler(ctx, { clerkUserId }) {
+    const user = await userByExternalId(ctx, clerkUserId);
+    if (user !== null) {
+      await ctx.db.delete(user._id);
+    } else {
+      console.warn("Can't delete user, User ID: ", clerkUserId);
     }
   },
 });
+
+export async function getCurrentUserOrThrow(ctx: QueryCtx) {
+  const userRecord = await getCurrentUser(ctx);
+  if (!userRecord) throw new Error("Can't get current user");
+  return userRecord;
+}
+
+export async function getCurrentUser(ctx: QueryCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (identity === null) {
+    return null;
+  }
+  return await userByExternalId(ctx, identity.subject);
+}
+
+async function userByExternalId(ctx: QueryCtx, externalId: string) {
+  return await ctx.db
+    .query("users")
+    .withIndex("byClerkId", (q) => q.eq("clerkId", externalId))
+    .unique();
+}
